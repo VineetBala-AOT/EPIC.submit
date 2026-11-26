@@ -10,6 +10,7 @@ from submit_api.models.account_project_search_options import ProjectDocumentSear
 from submit_api.models.account_project_work import AccountProjectWork
 from submit_api.models.non_work_item_type_config import NonWorkItemTypeConfig
 from submit_api.models.queries.submitted_document import DocumentQueries, parse_work_phase_keys
+from submit_api.models.submission import SubmissionStatus
 from submit_api.services.non_work_item_type_service import NonWorkItemTypeService
 from submit_api.services.package_type_service import PackageTypeService
 from tests.utilities.factory_utils import (
@@ -34,10 +35,14 @@ def _project(session, has_approved_condition=True):
 
 
 def _document(session, package, name=None):
-    """Attach a submitted (latest-version) document to the package."""
+    """Attach a submitted (latest-version) document to the package.
+
+    The listing hides PENDING submissions, which is the model default, so mark it SUBMITTED.
+    """
     user = factory_user_model(auth_guid=fake.uuid4())
     item = factory_item_model(package=package)
-    submission = factory_document_submission_model(item, created_by=user.auth_guid, name=name)
+    submission = factory_document_submission_model(
+        item, created_by=user.auth_guid, name=name, status=SubmissionStatus.SUBMITTED)
     submission.root_submission_id = submission.id
     session.flush()
     return submission

@@ -113,27 +113,29 @@ class ProponentService:
             ],
         }
 
+    @staticmethod
+    def _get_onboarded_items(account_ids) -> tuple[set, set]:
+        """Return the (project_id, work_id) and (project_id, non-work code) pairs already onboarded."""
+        onboarded_works = set()
+        onboarded_non_work_items = set()
+
+        for ap in AccountProject.get_all_in_account_ids(account_ids):
+            for apw in AccountProjectWork.find_by_account_project_id(ap.id):
+                if apw.is_active:
+                    onboarded_works.add((ap.project_id, apw.work_id))
+
+            for apnw in AccountProjectNonWork.find_by_account_project_id(ap.id):
+                if apnw.is_active:
+                    onboarded_non_work_items.add((ap.project_id, apnw.non_work_item_type.value))
+
+        return onboarded_works, onboarded_non_work_items
+
     @classmethod
     def _get_eligibility_entries(cls, proponent_id, account_ids) -> dict:
         """Build eligibility entries from works and non-work items."""
         projects = Project.get_all_by_proponent_id(proponent_id)
-        account_projects = AccountProject.get_all_in_account_ids(account_ids)
-        # Get onboarded works and non-work items (those in account relations)
-        onboarded_works = set()
-        onboarded_non_work_items = set()
-
-        for ap in account_projects:
-            # Get onboarded works
-            apw_list = AccountProjectWork.find_by_account_project_id(ap.id)
-            for apw in apw_list:
-                if apw.is_active:
-                    onboarded_works.add((ap.project_id, apw.work_id))
-
-            # Get onboarded non-work items
-            apnw_list = AccountProjectNonWork.find_by_account_project_id(ap.id)
-            for apnw in apnw_list:
-                if apnw.is_active:
-                    onboarded_non_work_items.add((ap.project_id, apnw.non_work_item_type.value))
+        # Onboarded works and non-work items (those in account relations)
+        onboarded_works, onboarded_non_work_items = cls._get_onboarded_items(account_ids)
 
         eligibility_entries = []
 
