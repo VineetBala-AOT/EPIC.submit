@@ -19,6 +19,7 @@ from submit_api.models.proponent import Proponent
 from submit_api.models.track_work import TrackWork
 from submit_api.services.invitation_service import InvitationService
 from submit_api.services.account_user_service import AccountUserService
+from submit_api.services.non_work_item_type_service import NonWorkItemTypeService
 from submit_api.services.report_package_sync_service import ReportPackageSyncService
 
 
@@ -153,17 +154,17 @@ class ProponentService:
                         "is_onboarded": (project.id, work.id) in onboarded_works
                     })
 
-            # Add management plan entry (if has_approved_condition)
-            if project.has_approved_condition:
+            # Add an entry per non-work item type the project is eligible for (e.g. Management Plan)
+            for config in NonWorkItemTypeService.get_eligible_for_project(project, onboarding_only=True):
                 eligibility_entries.append({
                     "project_id": project.id,
                     "project_name": project.name,
                     "work_id": None,
-                    "non_work_item_type": NonWorkItemType.MANAGEMENT_PLAN.value,
-                    "current_work": "Management Plan & Related Documents",
-                    "current_phase": "Post Decision",
-                    "is_enabled": project.has_approved_condition,
-                    "is_onboarded": (project.id, NonWorkItemType.MANAGEMENT_PLAN.value) in onboarded_non_work_items
+                    "non_work_item_type": config.code,
+                    "current_work": config.work_label,
+                    "current_phase": config.phase_label,
+                    "is_enabled": True,
+                    "is_onboarded": (project.id, config.code) in onboarded_non_work_items
                 })
 
         return {"eligibility_entries": eligibility_entries}
