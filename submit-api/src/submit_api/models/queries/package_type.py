@@ -24,8 +24,8 @@ class PackageTypeQueries:
     """Query module for complex package_type queries"""
 
     @classmethod
-    def find_by_project_id(cls, project_id: int, eligible_non_work_item_type_ids: list[int] = None):
-        """Return package types for a project's current work phases and its eligible non-work item types."""
+    def find_by_project_id(cls, project_id: int, eligible_non_work_package_map_ids: list[int] = None):
+        """Return package types for a project's current work phases and its eligible non-work package maps."""
         # Get phase IDs from active works on this project
         phase_ids = (
             db.session.query(TrackWork.current_phase_id)
@@ -43,14 +43,14 @@ class PackageTypeQueries:
             or_(PackageType.start_phase_id.in_(phase_ids), PackageType.end_phase_id.in_(phase_ids))
         ]
 
-        # Include phase-less package types linked to a non-work item type the project is eligible for
-        # (e.g. Management Plan, IEM and Report all belong to Management Plan, for approved-condition projects).
-        if eligible_non_work_item_type_ids:
+        # Include phase-less package types linked to a non-work package map the project is eligible for
+        # (e.g. Management Plan and IEM -> Management Plan, Report -> Report, for approved-condition projects).
+        if eligible_non_work_package_map_ids:
             conditions.append(
                 and_(
                     PackageType.start_phase_id.is_(None),
                     PackageType.end_phase_id.is_(None),
-                    PackageType.non_work_item_type_id.in_(eligible_non_work_item_type_ids),
+                    PackageType.non_work_package_map_id.in_(eligible_non_work_package_map_ids),
                 )
             )
 

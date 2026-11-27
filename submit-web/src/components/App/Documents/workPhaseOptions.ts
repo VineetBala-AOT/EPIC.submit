@@ -1,9 +1,9 @@
-import { NonWorkItemType } from "@/models/NonWorkItem";
+import { NonWorkPackageMap } from "@/models/NonWorkPackageMap";
 import { AccountProjectWork } from "@/models/Project";
 
 /**
  * A Work/Phase filter option. `value` is the key sent to the API as `work_phase`:
- * `work:<track_work_id>` for works, `non_work:<CODE>` for non-work buckets.
+ * `work:<track_work_id>` for works, `non_work:<CODE>` for non-work package maps.
  */
 export type WorkPhaseOption = {
   value: string;
@@ -16,10 +16,10 @@ export const nonWorkPhaseKey = (code: string) => `non_work:${code}`;
 const formatLabel = (work: string, phase: string) =>
   [work, phase].filter(Boolean).join(" - ");
 
-/** Build the Work/Phase options from the project's works and its eligible non-work item types. */
+/** Build the Work/Phase options from the project's works and its eligible non-work package maps. */
 export const buildWorkPhaseOptions = (
   accountProjectWorks: AccountProjectWork[] = [],
-  nonWorkItems: NonWorkItemType[] = [],
+  nonWorkPackageMaps: NonWorkPackageMap[] = [],
 ): WorkPhaseOption[] => {
   const options = new Map<string, WorkPhaseOption>();
 
@@ -36,11 +36,11 @@ export const buildWorkPhaseOptions = (
     }
   });
 
-  nonWorkItems.forEach((item) => {
-    const value = nonWorkPhaseKey(item.code);
+  nonWorkPackageMaps.forEach((packageMap) => {
+    const value = nonWorkPhaseKey(packageMap.code);
     options.set(value, {
       value,
-      label: formatLabel(item.work_label, item.phase_label),
+      label: formatLabel(packageMap.work_label, packageMap.phase_label),
     });
   });
 

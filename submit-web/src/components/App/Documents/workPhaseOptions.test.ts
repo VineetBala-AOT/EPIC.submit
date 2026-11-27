@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildWorkPhaseOptions } from "./workPhaseOptions";
 import { AccountProjectWork } from "@/models/Project";
-import { NonWorkItemType } from "@/models/NonWorkItem";
+import { NonWorkPackageMap } from "@/models/NonWorkPackageMap";
 
 const work = (
   id: number,
@@ -18,7 +18,7 @@ const work = (
   },
 });
 
-const managementPlan: NonWorkItemType = {
+const managementPlan: NonWorkPackageMap = {
   id: 1,
   code: "MANAGEMENT_PLAN",
   work_label: "Management Plan & Related Documents",
@@ -26,11 +26,10 @@ const managementPlan: NonWorkItemType = {
   sort_order: 1,
 };
 
-// A second, hypothetical bucket to check ordering when more than one is configured.
-const otherBucket: NonWorkItemType = {
+const report: NonWorkPackageMap = {
   id: 2,
-  code: "OTHER",
-  work_label: "Other Documents",
+  code: "REPORT",
+  work_label: "Reports & Recurring Submissions",
   phase_label: "Post Decision",
   sort_order: 2,
 };
@@ -57,14 +56,15 @@ describe("buildWorkPhaseOptions", () => {
   it("adds one option per eligible non-work item type, after the works", () => {
     const options = buildWorkPhaseOptions(
       [work(7, "EA Work", { name: "Effects" })],
-      [managementPlan, otherBucket],
+      [managementPlan, report],
     );
 
     expect(options.map((o) => o.value)).toEqual([
       "work:7",
       "non_work:MANAGEMENT_PLAN",
-      "non_work:OTHER",
+      "non_work:REPORT",
     ]);
+    expect(options[2].label).toBe("Reports & Recurring Submissions - Post Decision");
     expect(options[1].label).toBe(
       "Management Plan & Related Documents - Post Decision",
     );

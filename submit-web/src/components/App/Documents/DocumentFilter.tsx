@@ -2,7 +2,7 @@ import DateSubmittedFromFilter from "@/components/App/Filters/DateSubmittedFromF
 import DateSubmittedToFilter from "@/components/App/Filters/DateSubmittedToFilter";
 import { SearchFilter } from "@/components/App/Filters/SearchFilter";
 import StatusFilter from "@/components/App/Filters/StatusFilter";
-import { useGetNonWorkItemsByProjectId } from "@/hooks/api/useNonWorkItems";
+import { useGetNonWorkPackageMapsByProjectId } from "@/hooks/api/useNonWorkPackageMaps";
 import { useGetPackageTypesByProjectId } from "@/hooks/api/usePackageTypes";
 import { AccountProject } from "@/models/Project";
 import {
@@ -58,9 +58,9 @@ export const DocumentFilter = ({
   const { userType } = useAccount();
   const isProponent = userType === USER_TYPE.PROPONENT;
 
-  // Available Work/Phases: the project's works plus the non-work buckets (e.g. Management Plan)
+  // Available Work/Phases: the project's works plus the non-work package maps (e.g. Management Plan)
   // it is eligible for. Each option's value is the key the API filters on.
-  const { data: nonWorkItems } = useGetNonWorkItemsByProjectId({
+  const { data: nonWorkPackageMaps } = useGetNonWorkPackageMapsByProjectId({
     projectId: selectedProject?.project_id,
     enabled: Boolean(selectedProject),
   });
@@ -68,9 +68,9 @@ export const DocumentFilter = ({
     if (!selectedProject) return [];
     return buildWorkPhaseOptions(
       selectedProject.account_project_works,
-      nonWorkItems,
+      nonWorkPackageMaps,
     );
-  }, [selectedProject, nonWorkItems]);
+  }, [selectedProject, nonWorkPackageMaps]);
   const workPhaseLabels = useMemo(
     () => new Map(availableWorkPhases.map((wp) => [wp.value, wp.label])),
     [availableWorkPhases],

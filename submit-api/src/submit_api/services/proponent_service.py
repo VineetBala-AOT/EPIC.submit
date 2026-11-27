@@ -19,7 +19,7 @@ from submit_api.models.proponent import Proponent
 from submit_api.models.track_work import TrackWork
 from submit_api.services.invitation_service import InvitationService
 from submit_api.services.account_user_service import AccountUserService
-from submit_api.services.non_work_item_type_service import NonWorkItemTypeService
+from submit_api.services.non_work_package_map_service import NonWorkPackageMapService
 from submit_api.services.report_package_sync_service import ReportPackageSyncService
 
 
@@ -156,17 +156,17 @@ class ProponentService:
                         "is_onboarded": (project.id, work.id) in onboarded_works
                     })
 
-            # Add an entry per non-work item type the project is eligible for (e.g. Management Plan)
-            for config in NonWorkItemTypeService.get_eligible_for_project(project, onboarding_only=True):
+            # Add an entry per non-work package map offered at onboarding (e.g. Management Plan)
+            for package_map in NonWorkPackageMapService.get_eligible_for_project(project, onboarding_only=True):
                 eligibility_entries.append({
                     "project_id": project.id,
                     "project_name": project.name,
                     "work_id": None,
-                    "non_work_item_type": config.code,
-                    "current_work": config.work_label,
-                    "current_phase": config.phase_label,
+                    "non_work_item_type": package_map.code,
+                    "current_work": package_map.work_label,
+                    "current_phase": package_map.phase_label,
                     "is_enabled": True,
-                    "is_onboarded": (project.id, config.code) in onboarded_non_work_items
+                    "is_onboarded": (project.id, package_map.code) in onboarded_non_work_items
                 })
 
         return {"eligibility_entries": eligibility_entries}

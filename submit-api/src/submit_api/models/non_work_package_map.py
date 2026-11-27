@@ -11,11 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Non-work item type configuration model.
+"""Non-work package map model.
 
-Database-driven definition of the non-work buckets (e.g. Management Plan)
-that submissions can belong to when they are not tied to an EPIC.track work.
-Holds the work/phase labels shown in the UI and the project eligibility rule.
+Database-driven definition of the non-work groupings (Management Plan, Report) that
+packages belong to when they are not tied to an EPIC.track work. Package types point
+here through package_types.non_work_package_map_id. There is one row per
+NonWorkItemType enum value, holding the work/phase labels shown in the UI and the
+project eligibility rule.
 """
 from __future__ import annotations
 
@@ -26,10 +28,10 @@ from .db import db
 from ..enums.non_work_item import NonWorkItemEligibility, NonWorkItemType
 
 
-class NonWorkItemTypeConfig(BaseModel):
-    """Definition of a non-work item type and how it is displayed."""
+class NonWorkPackageMap(BaseModel):
+    """Definition of a non-work package map and how it is displayed."""
 
-    __tablename__ = 'non_work_item_types'
+    __tablename__ = 'non_work_package_map'
 
     id = Column(db.Integer, primary_key=True, autoincrement=True)
     code = Column(
@@ -46,11 +48,11 @@ class NonWorkItemTypeConfig(BaseModel):
     )
     eligibility = Column(
         db.String(50), nullable=False,
-        comment="NonWorkItemEligibility value deciding which projects this type applies to"
+        comment="NonWorkItemEligibility value deciding which projects this package map applies to"
     )
     is_onboarding_option = Column(
         db.Boolean, nullable=False, default=False,
-        comment="Whether this type is offered as a selectable entry when onboarding a proponent"
+        comment="Whether this package map is offered as a selectable entry when onboarding a proponent"
     )
     sort_order = Column(db.Integer, nullable=False, default=0)
     is_active = Column(db.Boolean, nullable=False, default=True)
@@ -67,10 +69,10 @@ class NonWorkItemTypeConfig(BaseModel):
 
     @classmethod
     def get_all_active(cls):
-        """Return all active non-work item types in display order."""
+        """Return all active package maps in display order."""
         return cls.query.filter_by(is_active=True).order_by(cls.sort_order, cls.id).all()
 
     @classmethod
     def find_by_code(cls, code: str):
-        """Return the active non-work item type with the given code, if any."""
+        """Return the active package map with the given code (a NonWorkItemType value), if any."""
         return cls.query.filter_by(code=code, is_active=True).first()

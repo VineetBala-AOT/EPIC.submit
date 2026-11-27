@@ -1,4 +1,4 @@
-"""Tests for database-driven non-work item types (e.g. Management Plan).
+"""Tests for database-driven non-work package maps (Management Plan, Report).
 
 Covers eligibility, the Documents table Work/Phase labels and filter keys, and the
 Submission Type filter's package types.
@@ -8,10 +8,10 @@ from faker import Faker
 from submit_api.enums.non_work_item import NonWorkItemType
 from submit_api.models.account_project_search_options import ProjectDocumentSearchOptions
 from submit_api.models.account_project_work import AccountProjectWork
-from submit_api.models.non_work_item_type_config import NonWorkItemTypeConfig
+from submit_api.models.non_work_package_map import NonWorkPackageMap
 from submit_api.models.queries.submitted_document import DocumentQueries, parse_work_phase_keys
 from submit_api.models.submission import SubmissionStatus
-from submit_api.services.non_work_item_type_service import NonWorkItemTypeService
+from submit_api.services.non_work_package_map_service import NonWorkPackageMapService
 from submit_api.services.package_type_service import PackageTypeService
 from tests.utilities.factory_utils import (
     factory_account_model, factory_account_project_model, factory_document_submission_model, factory_item_model,
@@ -22,6 +22,7 @@ from tests.utilities.factory_utils import (
 fake = Faker()
 
 MP_WORK_LABEL = "Management Plan & Related Documents"
+REPORT_WORK_LABEL = "Reports & Recurring Submissions"
 POST_DECISION = "Post Decision"
 
 
@@ -69,24 +70,32 @@ def _list(project, work_phase=None):
     return DocumentQueries.get_documents_paginated(options).items
 
 
-def test_seeded_non_work_item_types(session):
-    """The migration seeds only Management Plan, with its labels."""
-    management_plan = NonWorkItemTypeConfig.find_by_code(NonWorkItemType.MANAGEMENT_PLAN.value)
+def test_seeded_non_work_package_maps(session):
+    """The migration seeds Management Plan and Report with their labels; only Management Plan is onboardable."""
+    management_plan = NonWorkPackageMap.find_by_code(NonWorkItemType.MANAGEMENT_PLAN.value)
+    report = NonWorkPackageMap.find_by_code(NonWorkItemType.REPORT.value)
 
     assert (management_plan.work_label, management_plan.phase_label) == (MP_WORK_LABEL, POST_DECISION)
+    assert (report.work_label, report.phase_label) == (REPORT_WORK_LABEL, POST_DECISION)
     assert management_plan.is_onboarding_option is True
-    assert NonWorkItemTypeConfig.find_by_code(NonWorkItemType.REPORT.value) is None
+    assert report.is_onboarding_option is False
 
 
 def test_eligibility_follows_approved_condition(session):
-    """Management Plan needs approved conditions."""
+    """Both types need approved conditions; onboarding only offers Management Plan."""
     approved, _ = _project(session, has_approved_condition=True)
     not_approved, _ = _project(session, has_approved_condition=False)
 
-    assert [c.code for c in NonWorkItemTypeService.get_eligible_for_project(approved)] == ["MANAGEMENT_PLAN"]
-    assert NonWorkItemTypeService.get_eligible_for_project(not_approved) == []
-    assert NonWorkItemTypeService.is_eligible(approved, NonWorkItemType.MANAGEMENT_PLAN, onboarding_only=True)
-    assert NonWorkItemTypeService.is_eligible(approved, NonWorkItemType.REPORT) is False
+    codes = [c.code for c in NonWorkPackageMapService.get_eligible_for_project(approved)]
+    onboarding_codes = [
+        c.code for c in NonWorkPackageMapService.get_eligible_for_project(approved, onboarding_only=True)
+    ]
+
+    assert codes == ["MANAGEMENT_PLAN", "REPORT"]
+    assert onboarding_codes == ["MANAGEMENT_PLAN"]
+    assert NonWorkPackageMapService.get_eligible_for_project(not_approved) == []
+    assert NonWorkPackageMapService.is_eligible(approved, NonWorkItemType.REPORT) is True
+    assert NonWorkPackageMapService.is_eligible(approved, NonWorkItemType.REPORT, onboarding_only=True) is False
 
 
 def test_work_document_keeps_work_labels_in_approved_project(session):
@@ -101,8 +110,8 @@ def test_work_document_keeps_work_labels_in_approved_project(session):
     assert [(r.work, r.phase) for r in rows] == [("EA Work", "Effects Assessment Phase")]
 
 
-def test_management_plan_and_report_documents_share_labels(session):
-    """Management Plan and Report documents both show under the Management Plan bucket."""
+def test_management_plan_and_report_documents_use_their_own_labels(session):
+    """Management Plan and Report documents each show under their own bucket."""
     project, account_project = _project(session, has_approved_condition=True)
     _document(session, factory_package_model(account_project=account_project), name="plan.pdf")
     report_package = factory_report_package_model(account_project, factory_project_report_model(project.id))
@@ -111,11 +120,11 @@ def test_management_plan_and_report_documents_share_labels(session):
     labels = {r.name: (r.work, r.phase) for r in _list(project)}
 
     assert labels["plan.pdf"] == (MP_WORK_LABEL, POST_DECISION)
-    assert labels["report.pdf"] == (MP_WORK_LABEL, POST_DECISION)
+    assert labels["report.pdf"] == (REPORT_WORK_LABEL, POST_DECISION)
 
 
 def test_work_phase_filter_keys(session):
-    """Filter keys select works and the Management Plan bucket (which includes reports) separately."""
+    """Filter keys select works and each non-work bucket separately."""
     project, account_project = _project(session, has_approved_condition=True)
     work_package, work = _work_package(session, project, account_project, title="Title - with dash")
     _document(session, work_package, name="work.pdf")
@@ -127,8 +136,9 @@ def test_work_phase_filter_keys(session):
         return sorted(r.name for r in _list(project, work_phase=keys))
 
     assert names([f"work:{work.id}"]) == ["work.pdf"]
-    assert names(["non_work:MANAGEMENT_PLAN"]) == ["plan.pdf", "report.pdf"]
-    assert names([f"work:{work.id}", "non_work:MANAGEMENT_PLAN"]) == ["plan.pdf", "report.pdf", "work.pdf"]
+    assert names(["non_work:MANAGEMENT_PLAN"]) == ["plan.pdf"]
+    assert names(["non_work:REPORT"]) == ["report.pdf"]
+    assert names([f"work:{work.id}", "non_work:REPORT"]) == ["report.pdf", "work.pdf"]
     assert names(["Management Plan & Related Documents - Post Decision"]) == []
 
 
@@ -141,7 +151,7 @@ def test_parse_work_phase_keys_ignores_invalid_values():
     assert codes == ["MANAGEMENT_PLAN"]
 
 
-def test_package_types_by_project_include_eligible_non_work_types(session):
+def test_package_types_by_project_include_eligible_non_work_package_maps(session):
     """The Submission Type filter offers Management Plan, IEM and Report for approved-condition projects."""
     project, _ = _project(session, has_approved_condition=True)
 
@@ -150,7 +160,7 @@ def test_package_types_by_project_include_eligible_non_work_types(session):
     assert {"Management Plan", "Report"} <= names
 
 
-def test_package_types_by_project_exclude_non_work_types_when_ineligible(session):
+def test_package_types_by_project_exclude_non_work_package_maps_when_ineligible(session):
     """Projects without approved conditions get no phase-less types."""
     project, _ = _project(session, has_approved_condition=False)
 

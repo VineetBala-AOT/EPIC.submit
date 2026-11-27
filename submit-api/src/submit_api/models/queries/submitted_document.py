@@ -18,7 +18,7 @@ from submit_api.models.account_project import AccountProject
 from submit_api.models.account_project_search_options import DocumentSearchOptions, ProjectDocumentSearchOptions
 from submit_api.models.db import db
 from submit_api.models.item import Item
-from submit_api.models.non_work_item_type_config import NonWorkItemTypeConfig
+from submit_api.models.non_work_package_map import NonWorkPackageMap
 from submit_api.models.package import Package
 from submit_api.models.package_type import PackageType
 from submit_api.models.queries.submitted_date import filter_by_submitted_date
@@ -151,15 +151,15 @@ class DocumentQueries:
         )
 
         # Work-based packages take their labels from the work; packages without a work take them
-        # from the non-work item type their package type is linked to (e.g. Management Plan).
+        # from the non-work package map their package type is linked to (e.g. Management Plan).
         is_work_package = Package.account_project_work_id.isnot(None)
         work_label = case(
             (is_work_package, TrackWork.title),
-            else_=NonWorkItemTypeConfig.work_label,
+            else_=NonWorkPackageMap.work_label,
         )
         phase_label = case(
             (is_work_package, func.coalesce(TrackPhase.display_name, TrackPhase.name)),
-            else_=NonWorkItemTypeConfig.phase_label,
+            else_=NonWorkPackageMap.phase_label,
         )
 
         query = session.query(
@@ -188,7 +188,7 @@ class DocumentQueries:
         query = query.outerjoin(TrackWork, TrackWork.id == AccountProjectWork.work_id)
         query = query.outerjoin(TrackPhase, TrackPhase.id == TrackWork.current_phase_id)
         query = query.outerjoin(
-            NonWorkItemTypeConfig, NonWorkItemTypeConfig.id == PackageType.non_work_item_type_id
+            NonWorkPackageMap, NonWorkPackageMap.id == PackageType.non_work_package_map_id
         )
 
         # Join to the subquery to keep only the latest version per root_submission_id
@@ -247,7 +247,7 @@ class DocumentQueries:
             conditions.append(
                 and_(
                     Package.account_project_work_id.is_(None),
-                    NonWorkItemTypeConfig.code.in_(non_work_codes),
+                    NonWorkPackageMap.code.in_(non_work_codes),
                 )
             )
         if not conditions:
@@ -256,7 +256,7 @@ class DocumentQueries:
 
 
 def parse_work_phase_keys(work_phase_keys) -> tuple[list[int], list[str]]:
-    """Split Work/Phase option keys into track work ids and non-work item type codes."""
+    """Split Work/Phase option keys into track work ids and non-work package map codes."""
     work_ids = []
     non_work_codes = []
     for key in work_phase_keys or []:
